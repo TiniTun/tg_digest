@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+telethon
+openai>=1.0.0
+scikit-learn
+sentence-transformers
+python-dotenv
+requests
