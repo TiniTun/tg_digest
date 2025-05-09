@@ -4,7 +4,7 @@ from .config import API_ID, API_HASH
 def authorize():
     client = TelegramClient("digest_session", API_ID, API_HASH)
     client.start()
-    print("✅ Авторизация завершена. Сессия сохранена.")
+    print("✅ Authorization is completed. The session is saved.")
 
 if __name__ == "__main__":
     authorize()
