@@ -10,15 +10,59 @@ from sentence_transformers import SentenceTransformer
 from sklearn.cluster import DBSCAN
 from openai import OpenAI
 
-from .config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, OPENAI_API_KEY, API_ID, API_HASH, TOPICS_AND_CHANNELS
+from google.cloud import storage
+
+from .config import TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, OPENAI_API_KEY, API_ID, API_HASH, TOPICS_AND_CHANNELS, GCS_BUCKET_NAME, GCS_CACHE_PREFIX
 
 CACHE_TIME = 2  # hours
-CACHE_DIR = "cache"
-os.makedirs(CACHE_DIR, exist_ok=True)
+
+storage_client = storage.Client()
+
+
 client = OpenAI(api_key=OPENAI_API_KEY)
 
+def load_cache_from_gcs(date_str):
+    path = f"{GCS_CACHE_PREFIX}/{date_str}.json"
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(path)
 
-def cache_path(date_str): return os.path.join(CACHE_DIR, f"{date_str}.json")
+    if blob.exists():
+        data = blob.download_as_text()
+        return json.loads(data)
+    else:
+        return None
+
+def save_cache_to_gcs(date_str, messages_by_topic):
+    path = f"{GCS_CACHE_PREFIX}/{date_str}.json"
+    bucket = storage_client.bucket(GCS_BUCKET_NAME)
+    blob = bucket.blob(path)
+
+    blob.upload_from_string(
+        json.dumps(messages_by_topic, ensure_ascii=False, indent=2),
+        content_type="application/json"
+    )
+
+#def cache_path(date_str): return os.path.join(CACHE_DIR, f"{date_str}.json")
+
+def download_session_from_gcs():
+    bucket_name = GCS_BUCKET_NAME
+    blob_path = "secrets/digest_session.session"
+    local_path = "digest_session.session"
+
+    if os.path.exists(local_path):
+        print("✅ The session already exists locally")
+        return
+
+    print("⬇️ Downloading the session from GCS...")
+    client = storage.Client()
+    bucket = client.bucket(bucket_name)
+    blob = bucket.blob(blob_path)
+    
+    if blob.exists():
+        blob.download_to_filename(local_path)
+        print("✅ The session is loaded")
+    else:
+        print("❌ The session was not found in GCS")
 
 
 async def fetch_messages_for_date(date_str):
@@ -77,7 +121,7 @@ def cluster_and_summarize(messages_by_topic):
 def summarize_with_gpt(messages):
     prompt = (
         "You're a news analyst. Here are a few posts on the same topic."
-        "Make a short and clear summary of this topic in English in the Australian manner."
+        "Make a short and clear summary of this topic in Russian."
         "Highlight the facts, no repetition. Here are the messages:"
         + "\n\n".join(messages)
     )
@@ -108,17 +152,13 @@ def send_to_telegram(text):
 
 
 async def generate_digest_for_date(date_str):
-    # Cache
-    path = cache_path(date_str)
-    if os.path.exists(path) and (
-        datetime.now() - datetime.fromtimestamp(os.path.getmtime(path))
-    ) < timedelta(hours=CACHE_TIME):
-        with open(path, "r", encoding="utf-8") as f:
-            messages_by_topic = json.load(f)
+    messages_by_topic = load_cache_from_gcs(date_str)
+    if messages_by_topic:
+        print(f"✅ Loaded cache from GCS for {date_str}")
     else:
         messages_by_topic = await fetch_messages_for_date(date_str)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(messages_by_topic, f, ensure_ascii=False, indent=2)
+        save_cache_to_gcs(date_str, messages_by_topic)
+        print(f"✅ Saved cache to GCS for {date_str}")
 
     digest_text = cluster_and_summarize(messages_by_topic)
     send_to_telegram(digest_text)

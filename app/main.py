@@ -3,9 +3,13 @@ from fastapi.responses import PlainTextResponse
 from datetime import datetime
 import asyncio
 
-from .digest_pipeline import generate_digest_for_date
+from .digest_pipeline import generate_digest_for_date, download_session_from_gcs
 
 app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+    download_session_from_gcs()
 
 @app.get("/")
 def root():
