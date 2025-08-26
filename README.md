@@ -102,13 +102,12 @@ gcloud run deploy telegram-digest \\
   --region asia-southeast1 \\
   --allow-unauthenticated \\
   --memory=2Gi \\
-  --set-secrets \\
-    TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,\\
-    TELEGRAM_CHAT_ID=TELEGRAM_CHAT_ID:latest,\\
-    OPENAI_API_KEY=OPENAI_API_KEY:latest,\\
-    API_ID=API_ID:latest,\\
-    API_HASH=API_HASH:latest,\\
-    GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest
+  --set-secrets TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest \\
+  --set-secrets TELEGRAM_CHAT_ID=TELEGRAM_CHAT_ID:latest \\
+  --set-secrets OPENAI_API_KEY=OPENAI_API_KEY:latest \\
+  --set-secrets API_ID=API_ID:latest \\
+  --set-secrets API_HASH=API_HASH:latest \\
+  --set-secrets GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest
 ```
 
 ---
