@@ -203,5 +203,4 @@ async def generate_digest_for_date(date_str):
         print(f"✅ Saved cache to GCS for {date_str}")
 
     digest_text = cluster_and_summarize(messages_by_topic)
-    print(digest_text)
-    # send_to_telegram(digest_text)
+    send_to_telegram(digest_text)
