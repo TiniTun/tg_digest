@@ -4,3 +4,11 @@ __pycache__/
 digest_session.session
 venv/
 cache/
+*.code-workspace
+.venv/
+.ruff_cache/
+.vscode/
+topics.json
+
+.cursorignore
+.cursor/

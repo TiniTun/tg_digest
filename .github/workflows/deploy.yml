@@ -1,0 +1,63 @@
+name: Deploy to Cloud Run
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  GCP_REGION: ${{ vars.GCP_REGION }}
+  SERVICE_NAME: ${{ vars.CLOUD_RUN_SERVICE }}
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    concurrency:
+      group: cloud-run-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure gcloud defaults
+        run: |
+          gcloud config set project "${GCP_PROJECT_ID}"
+          if [ -n "${GCP_REGION}" ]; then
+            gcloud config set run/region "${GCP_REGION}"
+          fi
+
+      - name: Deploy to Cloud Run (source)
+        run: |
+          REGION_FLAG=""
+          if [ -n "${GCP_REGION}" ]; then
+            REGION_FLAG="--region ${GCP_REGION}"
+          fi
+          gcloud run deploy "${SERVICE_NAME:-telegram-digest}" \
+            --source . \
+            ${REGION_FLAG} \
+            --allow-unauthenticated \
+            --memory=2Gi \
+            --set-secrets \
+              TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest,\
+              TELEGRAM_CHAT_ID=TELEGRAM_CHAT_ID:latest,\
+              OPENAI_API_KEY=OPENAI_API_KEY:latest,\
+              API_ID=API_ID:latest,\
+              API_HASH=API_HASH:latest,\
+              GCS_BUCKET_NAME=GCS_BUCKET_NAME:latest
+
+
